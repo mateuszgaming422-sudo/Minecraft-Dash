@@ -2,7 +2,7 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <title>Mini Geometry Dash</title>
+    <title>Geometry Dash Web + WASM</title>
     <style>
         body { margin: 0; background: #222 }
         canvas { display: block; margin: 0 auto; background: #333; }
@@ -18,6 +18,12 @@
         <span id="score"></span>
     </div>
     <audio id="music" src="your_level_music.mp3"></audio>
+    <!-- Importujemy skrypt JS-->
     <script src="script.js"></script>
+    <!-- Import WASM przez JS (moduł ES6) -->
+    <script type="module">
+        import createParticlesModule from './particles.js';
+        window.particlesModulePromise = createParticlesModule();
+    </script>
 </body>
 </html>
