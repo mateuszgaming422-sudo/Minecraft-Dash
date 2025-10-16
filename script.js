@@ -1,3 +1,5 @@
+// Nazwa pliku: script.js
+
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const gravityBtn = document.getElementById('gravityBtn');
@@ -25,7 +27,6 @@ let platforms = [
 let levelSpeed = 6;
 let gameOver = false, score = 0, checkpoint = 0;
 let levelMusicStarted = false;
-let keys = {};
 let canDoubleJump = true;
 
 // Mechanika: generowanie przeszkód i synchronizacja z muzyką
@@ -34,10 +35,8 @@ function spawnObstacle() {
     let obs = {x: GAME_WIDTH, w: 40, h: type === 'spike' ? 40 : 60, type};
     obstacles.push(obs);
 }
+setInterval(spawnObstacle, 1500); // Synchronizacja do rytmu (zmień tempo jak chcesz)
 
-setInterval(spawnObstacle, 1500); // Synchronizacja do rytmu (możesz zmieniać tempo)[web:1]
-
-// Skok, odwrócenie grawitacji
 function jump() {
     if (hero.y === GAME_HEIGHT - hero.size - 40 || hero.gravityDir === -1 && hero.y === 0) {
         hero.vy = hero.jumpPower * hero.gravityDir;
@@ -45,8 +44,10 @@ function jump() {
     } else if (canDoubleJump) {
         hero.vy = hero.jumpPower * hero.gravityDir;
         canDoubleJump = false;
+        efekcik(hero.x, hero.y); // Efekt cząsteczkowy!
     }
 }
+
 function flipGravity() {
     hero.gravityDir *= -1;
     hero.jumpPower *= -1;
@@ -55,17 +56,16 @@ function flipGravity() {
 jumpBtn.onclick = jump;
 gravityBtn.onclick = flipGravity;
 
-// Sterowanie klawiszami/ekranem
 document.addEventListener('keydown', e => {
     if (e.code === 'Space') jump();
     if (e.code === 'KeyG') flipGravity();
 });
 
-// Render i logika gry
 function drawHero() {
     ctx.fillStyle = hero.color;
     ctx.fillRect(hero.x, hero.y, hero.size, hero.size);
 }
+
 function drawObstacles() {
     ctx.fillStyle = "#ff595e";
     for (let obs of obstacles) {
@@ -78,22 +78,21 @@ function drawPlatforms() {
         ctx.fillRect(pf.x, pf.y, pf.w, pf.h);
     }
 }
-
 function updateObstacles() {
     for (let obs of obstacles) {
         obs.x -= levelSpeed;
     }
     obstacles = obstacles.filter(obs => obs.x + obs.w > 0);
 }
-
 function checkCollisions() {
     for (let obs of obstacles) {
         if (hero.x + hero.size > obs.x && hero.x < obs.x + obs.w &&
             hero.y + hero.size > GAME_HEIGHT - obs.h - 40 &&
             hero.y < GAME_HEIGHT - 40) {
                 gameOver = true;
-                checkpoint = score; // przykładowy checkpoint
-                setTimeout(reset, 1200); // Restart po śmierci
+                checkpoint = score;
+                efekcik(hero.x, hero.y); // Efekt cząsteczkowy!
+                setTimeout(reset, 1200);
         }
     }
     if (hero.y + hero.size > GAME_HEIGHT - 40) {
@@ -107,7 +106,6 @@ function checkCollisions() {
         canDoubleJump = true;
     }
 }
-
 function reset() {
     hero.x = 80;
     hero.y = GAME_HEIGHT - 80;
@@ -117,13 +115,35 @@ function reset() {
     gameOver = false;
 }
 
+function efekcik(x, y) {
+    // Wywołanie efektu eksplozji z WASM
+    window.particlesModulePromise.then(module => {
+        module.spawnExplosion(x, y, 30);
+    });
+}
+
+function rysujParticles(ctx) {
+    window.particlesModulePromise.then(module => {
+        module.updateParticles(0.016);
+        const arr = module.getParticles();
+        for (let i = 0; i < arr.length; ++i) {
+            let p = arr[i];
+            // W zależności od eksportu: [x, y, life, r, g, b]
+            ctx.fillStyle = `rgba(${p[3]*255},${p[4]*255},${p[5]*255},${p[2]})`;
+            ctx.beginPath();
+            ctx.arc(p[0], p[1], 8*p[2], 0, 2*Math.PI);
+            ctx.fill();
+        }
+    });
+}
+
 function gameLoop() {
     ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
     if (!levelMusicStarted) { music.play(); levelMusicStarted = true; }
-
     drawPlatforms();
     drawObstacles();
     drawHero();
+    rysujParticles(ctx);
 
     if (!gameOver) {
         hero.y += hero.vy;
@@ -136,7 +156,6 @@ function gameLoop() {
         ctx.fillStyle = "#fff";
         ctx.fillText("Koniec!", GAME_WIDTH/2 - 100, GAME_HEIGHT/2);
     }
-
     scoreField.innerText = "Wynik: " + score;
     requestAnimationFrame(gameLoop);
 }
